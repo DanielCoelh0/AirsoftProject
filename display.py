@@ -30,8 +30,17 @@ class TFTDisplay:
     def _init_display(self):
         """Inicializa o display TFT"""
         try:
+            # Limpar GPIOs antes de configurar (evita erro "gpio not allocated")
+            try:
+                GPIO.cleanup([TFT_PINS['RST'], TFT_PINS['DC'], TFT_PINS['CS']])
+            except:
+                pass
+            
             # Configurar GPIO
             GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)  # Desabilitar avisos de GPIO já em uso
+            
+            # Configurar pins do display
             GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
             GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
             GPIO.setup(TFT_PINS['CS'], GPIO.OUT)

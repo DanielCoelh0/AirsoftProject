@@ -45,20 +45,28 @@
 
 **Componente:** Display TFT 3.2" 240x320 com interface SPI
 
-**Conexões do Display:**
-- **VCC** → Pin 2 (5V) ou Pin 1 (3.3V) - verificar especificações do módulo
-- **GND** → Pin 6 (GND)
-- **MOSI (SDI)** → Pin 19 (GPIO 10 / MOSI)
-- **SCLK (SCK)** → Pin 23 (GPIO 11 / SCLK)
+**Entradas do Display:**
+VCC, GND, CS, RESET, DC, SDI (MOSI), SCK, LED, SDO (MISO), T_CLK, T_CS, T_DIN, T_DO, T_IRQ
+
+**Conexões do Display (ligar estas):**
+- **VCC** → Pin 2 (5V) - fio vermelho
+- **GND** → Pin 6 (GND) - fio preto
 - **CS** → Pin 24 (GPIO 8 / CE0)
-- **DC (A0)** → Pin 18 (GPIO 24)
-- **RST** → Pin 22 (GPIO 25)
-- **LED (Backlight)** → Pin 2 (5V) ou Pin 12 (GPIO 18) via resistor 220Ω
+- **RESET** → Pin 22 (GPIO 25)
+- **DC** → Pin 18 (GPIO 24)
+- **SDI (MOSI)** → Pin 19 (GPIO 10 / MOSI)
+- **SCK** → Pin 23 (GPIO 11 / SCLK)
+- **LED** → Pin 2 (5V) ou Pin 12 (GPIO 18) via resistor 220Ω
+
+**Entradas que NÃO precisam ser ligadas (deixar desconectadas):**
+- **SDO (MISO)** - não é necessário para este projeto
+- **T_CLK, T_CS, T_DIN, T_DO, T_IRQ** - são para touchscreen, não são necessárias
 
 **Nota:** 
 - O display usa SPI, não I2C
 - Verifique se o SPI está ativado: `lsmod | grep spi`
 - Os pins SPI (MOSI, SCLK) são fixos no Raspberry Pi
+- **Sempre ligue GND primeiro, depois VCC, depois os sinais**
 
 ### 2. LEDs
 
