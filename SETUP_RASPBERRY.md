@@ -2,6 +2,33 @@
 
 Este guia ajuda você a configurar a Raspberry Pi do zero para rodar o projeto da bomba simulada.
 
+## 📤 Preparar o Projeto para GitHub (Opcional - Mas Recomendado)
+
+Se ainda não colocou o projeto no GitHub, siga estes passos:
+
+1. **Criar repositório no GitHub:**
+   - Acesse: https://github.com/new
+   - Nome: `AirsoftProject` (ou outro nome)
+   - Escolha público ou privado
+   - **NÃO** inicialize com README, .gitignore ou licença
+   - Clique em "Create repository"
+
+2. **No seu computador, no diretório do projeto:**
+   ```bash
+   cd /caminho/para/AirsoftProject
+   git remote add origin https://github.com/SEU_USERNAME/AirsoftProject.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+   **Substitua `SEU_USERNAME` pelo seu username do GitHub.**
+
+3. **Depois, na Raspberry Pi, pode clonar diretamente:**
+   ```bash
+   cd ~
+   git clone https://github.com/SEU_USERNAME/AirsoftProject.git
+   ```
+
 ## 📋 Pré-requisitos
 
 - Raspberry Pi 2 Model B (ou superior)
@@ -122,10 +149,22 @@ ls -l /dev/spi*
 
 ### 4.1 Transferir Arquivos para a Raspberry Pi
 
-**Opção A: Via Git (se o projeto estiver em repositório):**
+**Opção A: Via Git/GitHub (Recomendado - Mais Fácil):**
+
+Se o projeto estiver no GitHub:
+
 ```bash
 cd ~
-git clone <URL_DO_REPOSITORIO>
+git clone https://github.com/SEU_USERNAME/AirsoftProject.git
+cd AirsoftProject
+```
+
+**Substitua `SEU_USERNAME` pelo seu username do GitHub.**
+
+**Exemplo:**
+```bash
+cd ~
+git clone https://github.com/danielcoelho/AirsoftProject.git
 cd AirsoftProject
 ```
 
