@@ -30,40 +30,26 @@ class TFTDisplay:
     def _init_display(self):
         """Inicializa o display TFT"""
         try:
-            # GPIO.setmode já foi chamado no bomb.py, não precisa chamar novamente
-            # Limpar apenas os GPIOs do display antes de configurar
+            # Garantir que GPIO está configurado
             try:
-                GPIO.cleanup([TFT_PINS['RST'], TFT_PINS['DC'], TFT_PINS['CS']])
+                GPIO.setmode(GPIO.BCM)
             except:
                 pass
             
-            # Configurar pins do display
-            try:
-                GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
-            except RuntimeError:
+            GPIO.setwarnings(False)
+            
+            # Limpar apenas os GPIOs do display antes de configurar
+            pins_to_clean = [TFT_PINS['RST'], TFT_PINS['DC'], TFT_PINS['CS']]
+            for pin in pins_to_clean:
                 try:
-                    GPIO.cleanup(TFT_PINS['RST'])
-                    GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
-                except Exception as e:
-                    raise RuntimeError(f"Não foi possível alocar GPIO {TFT_PINS['RST']} (RST): {e}")
-                    
-            try:
-                GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
-            except RuntimeError:
-                try:
-                    GPIO.cleanup(TFT_PINS['DC'])
-                    GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
-                except Exception as e:
-                    raise RuntimeError(f"Não foi possível alocar GPIO {TFT_PINS['DC']} (DC): {e}")
-                    
-            try:
-                GPIO.setup(TFT_PINS['CS'], GPIO.OUT)
-            except RuntimeError:
-                try:
-                    GPIO.cleanup(TFT_PINS['CS'])
-                    GPIO.setup(TFT_PINS['CS'], GPIO.OUT)
-                except Exception as e:
-                    raise RuntimeError(f"Não foi possível alocar GPIO {TFT_PINS['CS']} (CS): {e}")
+                    GPIO.setup(pin, GPIO.IN)  # Configurar como input primeiro
+                except:
+                    pass
+            
+            # Configurar pins do display como OUTPUT
+            GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
+            GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
+            GPIO.setup(TFT_PINS['CS'], GPIO.OUT)
             
             # Inicializar pins
             GPIO.output(TFT_PINS['RST'], GPIO.HIGH)
@@ -246,10 +232,28 @@ class TFTDisplay:
     
     def close(self):
         """Fecha a conexão"""
-        if self.spi:
-            self.clear()
-            self.spi.close()
-        GPIO.cleanup([TFT_PINS['RST'], TFT_PINS['DC'], TFT_PINS['CS']])
+        try:
+            if self.spi:
+                try:
+                    self.clear()
+                except:
+                    pass
+                try:
+                    self.spi.close()
+                except:
+                    pass
+        except:
+            pass
+        
+        # Cleanup seguro dos GPIOs
+        try:
+            for pin in [TFT_PINS['RST'], TFT_PINS['DC'], TFT_PINS['CS']]:
+                try:
+                    GPIO.setup(pin, GPIO.IN)  # Configurar como input antes de cleanup
+                except:
+                    pass
+        except:
+            pass
 
 
 # Alias para compatibilidade com código existente

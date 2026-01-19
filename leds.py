@@ -19,19 +19,27 @@ class LEDController:
     
     def _init_gpio(self):
         """Inicializa os GPIOs"""
-        # GPIO.setmode já foi chamado no bomb.py, não precisa chamar novamente
+        # Garantir que GPIO está configurado
+        try:
+            GPIO.setmode(GPIO.BCM)
+        except:
+            pass
+        
+        GPIO.setwarnings(False)
+        
+        # Configurar cada pin como OUTPUT
         for pin in self.led_pins:
             try:
+                # Primeiro configurar como input (modo seguro)
+                try:
+                    GPIO.setup(pin, GPIO.IN)
+                except:
+                    pass
+                # Depois configurar como output
                 GPIO.setup(pin, GPIO.OUT)
                 GPIO.output(pin, GPIO.LOW)
-            except RuntimeError as e:
-                # Se GPIO já estiver configurado, tenta limpar e reconfigurar
-                try:
-                    GPIO.cleanup(pin)
-                    GPIO.setup(pin, GPIO.OUT)
-                    GPIO.output(pin, GPIO.LOW)
-                except:
-                    print(f"Aviso: Não foi possível configurar GPIO {pin} para LED")
+            except Exception as e:
+                print(f"Aviso: Não foi possível configurar GPIO {pin} para LED: {e}")
     
     def _blink_loop(self):
         """Loop para piscar os LEDs"""
@@ -54,9 +62,20 @@ class LEDController:
         self.is_blinking = False
         if self.blink_thread:
             self.blink_thread.join(timeout=1)
-        # Desligar todos os LEDs
+        # Desligar todos os LEDs (com verificação de segurança)
         for pin in self.led_pins:
-            GPIO.output(pin, GPIO.LOW)
+            try:
+                # Verificar se o pin está configurado antes de usar
+                GPIO.output(pin, GPIO.LOW)
+            except RuntimeError:
+                # Se não estiver configurado, tentar configurar primeiro
+                try:
+                    GPIO.setup(pin, GPIO.OUT)
+                    GPIO.output(pin, GPIO.LOW)
+                except:
+                    pass
+            except:
+                pass
     
     def turn_on(self):
         """Liga todos os LEDs"""
@@ -72,6 +91,14 @@ class LEDController:
     
     def cleanup(self):
         """Limpa os GPIOs"""
-        self.stop_blinking()
+        try:
+            self.stop_blinking()
+        except:
+            pass
+        
+        # Configurar pins como input (modo seguro)
         for pin in self.led_pins:
-            GPIO.setup(pin, GPIO.IN)
+            try:
+                GPIO.setup(pin, GPIO.IN)
+            except:
+                pass

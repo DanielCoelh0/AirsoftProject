@@ -23,13 +23,15 @@ class BombSimulator:
         self.is_defused = False
         self.is_exploded = False
         
+        # Configurar GPIO uma vez no início
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        
         # Limpar GPIOs antes de inicializar (evita erro "gpio not allocated")
         try:
             GPIO.cleanup()
         except:
             pass
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
         
         # Inicializar componentes
         print("Inicializando componentes...")
@@ -202,10 +204,26 @@ class BombSimulator:
     def cleanup(self):
         """Limpa recursos e desliga componentes"""
         print("\nLimpando recursos...")
-        self.leds.cleanup()
-        self.display.close()
-        self.keypad.cleanup()
-        GPIO.cleanup()
+        try:
+            self.leds.cleanup()
+        except Exception as e:
+            print(f"Aviso ao limpar LEDs: {e}")
+        
+        try:
+            self.display.close()
+        except Exception as e:
+            print(f"Aviso ao fechar display: {e}")
+        
+        try:
+            self.keypad.cleanup()
+        except Exception as e:
+            print(f"Aviso ao limpar keypad: {e}")
+        
+        try:
+            GPIO.cleanup()
+        except Exception as e:
+            print(f"Aviso ao fazer cleanup GPIO: {e}")
+        
         print("Recursos limpos.")
 
 def main():
