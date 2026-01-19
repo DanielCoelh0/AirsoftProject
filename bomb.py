@@ -23,6 +23,14 @@ class BombSimulator:
         self.is_defused = False
         self.is_exploded = False
         
+        # Limpar GPIOs antes de inicializar (evita erro "gpio not allocated")
+        try:
+            GPIO.cleanup()
+        except:
+            pass
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        
         # Inicializar componentes
         print("Inicializando componentes...")
         self.display = LCDDisplay()

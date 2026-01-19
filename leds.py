@@ -19,10 +19,19 @@ class LEDController:
     
     def _init_gpio(self):
         """Inicializa os GPIOs"""
-        GPIO.setmode(GPIO.BCM)
+        # GPIO.setmode já foi chamado no bomb.py, não precisa chamar novamente
         for pin in self.led_pins:
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, GPIO.LOW)
+            try:
+                GPIO.setup(pin, GPIO.OUT)
+                GPIO.output(pin, GPIO.LOW)
+            except RuntimeError as e:
+                # Se GPIO já estiver configurado, tenta limpar e reconfigurar
+                try:
+                    GPIO.cleanup(pin)
+                    GPIO.setup(pin, GPIO.OUT)
+                    GPIO.output(pin, GPIO.LOW)
+                except:
+                    print(f"Aviso: Não foi possível configurar GPIO {pin} para LED")
     
     def _blink_loop(self):
         """Loop para piscar os LEDs"""

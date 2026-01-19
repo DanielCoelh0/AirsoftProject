@@ -22,7 +22,8 @@ TFT_PINS = {
 }
 
 # Configurações dos LEDs
-LED_PINS = [18, 23]  # GPIO pins para os LEDs
+# NOTA: GPIO 18 removido porque é usado pelo display TFT backlight
+LED_PINS = [23]  # GPIO pins para os LEDs (GPIO 18 usado pelo display)
 LED_BLINK_INTERVAL = 0.5  # Intervalo de piscar em segundos
 
 # Configurações do Teclado Matricial 4x3

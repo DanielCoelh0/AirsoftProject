@@ -30,20 +30,40 @@ class TFTDisplay:
     def _init_display(self):
         """Inicializa o display TFT"""
         try:
-            # Limpar GPIOs antes de configurar (evita erro "gpio not allocated")
+            # GPIO.setmode já foi chamado no bomb.py, não precisa chamar novamente
+            # Limpar apenas os GPIOs do display antes de configurar
             try:
                 GPIO.cleanup([TFT_PINS['RST'], TFT_PINS['DC'], TFT_PINS['CS']])
             except:
                 pass
             
-            # Configurar GPIO
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setwarnings(False)  # Desabilitar avisos de GPIO já em uso
-            
             # Configurar pins do display
-            GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
-            GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
-            GPIO.setup(TFT_PINS['CS'], GPIO.OUT)
+            try:
+                GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
+            except RuntimeError:
+                try:
+                    GPIO.cleanup(TFT_PINS['RST'])
+                    GPIO.setup(TFT_PINS['RST'], GPIO.OUT)
+                except Exception as e:
+                    raise RuntimeError(f"Não foi possível alocar GPIO {TFT_PINS['RST']} (RST): {e}")
+                    
+            try:
+                GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
+            except RuntimeError:
+                try:
+                    GPIO.cleanup(TFT_PINS['DC'])
+                    GPIO.setup(TFT_PINS['DC'], GPIO.OUT)
+                except Exception as e:
+                    raise RuntimeError(f"Não foi possível alocar GPIO {TFT_PINS['DC']} (DC): {e}")
+                    
+            try:
+                GPIO.setup(TFT_PINS['CS'], GPIO.OUT)
+            except RuntimeError:
+                try:
+                    GPIO.cleanup(TFT_PINS['CS'])
+                    GPIO.setup(TFT_PINS['CS'], GPIO.OUT)
+                except Exception as e:
+                    raise RuntimeError(f"Não foi possível alocar GPIO {TFT_PINS['CS']} (CS): {e}")
             
             # Inicializar pins
             GPIO.output(TFT_PINS['RST'], GPIO.HIGH)
