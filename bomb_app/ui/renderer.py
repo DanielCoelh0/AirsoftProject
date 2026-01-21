@@ -45,15 +45,17 @@ class Renderer:
             # Header text
             self.draw_text("GAME SETUP", self.font_header, config.COLOR_WHITE, (self.width//2, 20))
             # Content Area
-            self.draw_text(f"PLANT TIME: {state_machine.plant_time}s", self.font_small, config.COLOR_WHITE, (cx, 100))
-            self.draw_text(f"DEFUSE TIME: {state_machine.defuse_time}s", self.font_small, config.COLOR_WHITE, (cx, 130))
-            self.draw_text("TYPE TIME AND PRESS #", self.font_small, (100, 100, 100), (cx, 160))
-            self.draw_text(f"{input_label}: {current_input}", self.font_medium, config.COLOR_GREEN, (cx, 200))
+            self.draw_text(f"PLANT TIME: {state_machine.plant_time}s", self.font_medium, config.COLOR_WHITE, (cx, 80))
+            self.draw_text(f"DEFUSE TIME: {state_machine.defuse_time}s", self.font_medium, config.COLOR_WHITE, (cx, 120))
+            self.draw_text(f"{input_label}", self.font_medium, config.COLOR_GREEN, (cx, 170))
+            self.draw_text(f"{current_input}", self.font_large, config.COLOR_GREEN, (cx, 220))
             self.draw_text("PRESS # TO CONFIRM", self.font_small, config.COLOR_WHITE, (cx, 270))
             self.draw_text("HOLD # (2s) TO RESET", self.font_small, (100, 100, 100), (cx, 300))
             
         elif state == GameState.READY:
-            self.draw_text("READY", self.font_large, config.COLOR_GREEN, (cx, cy - 20))
+            # Header text
+            self.draw_text("READY", self.font_header, config.COLOR_GREEN, (self.width//2, 20))
+            # Content Area
             self.draw_text("PRESS * TO START", self.font_medium, config.COLOR_WHITE, (cx, cy + 30))
             self.draw_text("HOLD # (2s) TO RESET", self.font_small, (100, 100, 100), (cx, 300))
             

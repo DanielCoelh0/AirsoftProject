@@ -110,9 +110,14 @@ def main():
                         sm.plant_time = val
                         config_step = 1
                         input_buffer = "" # Clear for next step per request
-                    else: # Defuse Time
+                    elif config_step == 1: # Defuse Time
                         sm.defuse_time = val
+                        config_step = 2
+                        input_buffer = "" # Clear for next step per request
+                    else: # Config Done / Ready
+                        # Just confirm and go
                         sm.transition_to(state_machine.GameState.READY)
+                        config_step = 0
                         input_buffer = ""
             
             elif sm.state == state_machine.GameState.READY:
@@ -185,7 +190,12 @@ def main():
         
         if sm.state == state_machine.GameState.CONFIG:
              # Determine Context Label
-             current_label = "SET PLANT TIME" if config_step == 0 else "SET DEFUSE TIME"
+             if config_step == 0:
+                 current_label = "SET PLANT TIME"
+             elif config_step == 1:
+                 current_label = "SET DEFUSE TIME"
+             elif config_step == 2:
+                 current_label = "CONFIG DONE"
              display_input = input_buffer
         elif showing_input:
              # Masking Logic: "****", "1***", "12**", etc.
