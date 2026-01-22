@@ -6,6 +6,7 @@ import os
 from bomb_app import config, state_machine
 from bomb_app.hardware import get_hardware
 from bomb_app.ui.renderer import Renderer
+from bomb_app.telegram_config import TELEGRAM_CHAT_ID_TERRORISTS, TELEGRAM_CHAT_ID_COUNTERTERRORISTS
 
 def load_video(video_path):
     """Load video and return VideoCapture object, or None if file doesn't exist"""
@@ -54,9 +55,13 @@ def main():
     hw.initialize()
     renderer = Renderer()
     sm = state_machine.StateMachine()
+    tg_chat_id_terrorists = TELEGRAM_CHAT_ID_TERRORISTS
+    tg_chat_id_counterterrorists = TELEGRAM_CHAT_ID_COUNTERTERRORISTS
     
     # State Helpers
     config_step = 0 # 0=Plant, 1=Defuse
+    player_step = 0 # For Player Registration index
+    defuse_step = 0 # 0=Phone Number, 1=PIN
     input_buffer = ""
     showing_input = False # For Plant/Defuse phases, do we show input field?
     message_overlay = "" # For "WRONG CODE" etc.
@@ -137,7 +142,7 @@ def main():
             hash_hold_time += dt
             if hash_hold_time > 2.0:
                  # LONG PRESS RESET
-                 sm.transition_to(state_machine.GameState.CONFIG)
+                 sm.transition_to(state_machine.GameState.PIN_TYPE_SELECT)
                  config_step = 0
                  input_buffer = "" # Start blank per request
                  hash_hold_time = 0
@@ -177,10 +182,10 @@ def main():
                         # Store last frame for display
                         video_last_frame = get_video_frame(boot_video, current_video_frame)
             
-            # If no video file exists, auto-skip to CONFIG
+            # If no video file exists, auto-skip
             if boot_video is None:
-                sm.transition_to(state_machine.GameState.CONFIG)
-                config_step = 0
+                sm.transition_to(state_machine.GameState.PIN_TYPE_SELECT)
+                input_buffer = ""
                 # Reset timers
                 blink_timer = 0
                 last_beep_time = -999
@@ -266,14 +271,48 @@ def main():
             if sm.state == state_machine.GameState.BOOT:
                 # # key skips boot video
                 if key == '#':
-                    sm.transition_to(state_machine.GameState.CONFIG)
-                    config_step = 0
+                    sm.transition_to(state_machine.GameState.PIN_TYPE_SELECT)
+                    input_buffer = ""
                     # Reset timers
                     blink_timer = 0
                     last_beep_time = -999
                     last_30s_mark = -1
                     # Skip video playback
                     video_ended = True
+            
+            elif sm.state == state_machine.GameState.PIN_TYPE_SELECT:
+                if key in ['1', '2', '3']:
+                    input_buffer = key
+                elif key == '#':
+                    if input_buffer == '1':
+                        sm.pin_mode = 1
+                        sm.transition_to(state_machine.GameState.CONFIG)
+                        config_step = 0
+                    elif input_buffer in ['2', '3']:
+                        sm.pin_mode = int(input_buffer)
+                        sm.transition_to(state_machine.GameState.PLAYER_REGISTRATION)
+                        sm.player_phones = []
+                        player_step = 1
+                    input_buffer = ""
+                elif key == '*':
+                    input_buffer = ""
+
+            elif sm.state == state_machine.GameState.PLAYER_REGISTRATION:
+                if key.isdigit():
+                    input_buffer += key
+                elif key == '#':
+                    if input_buffer:
+                        sm.player_phones.append(input_buffer)
+                        player_step += 1
+                        input_buffer = ""
+                    else:
+                        message_overlay = "INPUT PHONE"
+                        message_timer = 1.0
+                elif key == '*':
+                    # Request says: press * to enter config that exists today
+                    sm.transition_to(state_machine.GameState.CONFIG)
+                    config_step =  0
+                    input_buffer = ""
             
             elif sm.state == state_machine.GameState.CONFIG:
                 if key.isdigit():
@@ -323,24 +362,51 @@ def main():
                          if len(input_buffer) < 4:
                             input_buffer += key
                     elif key == '#': # User must press # to confirm
-                        if input_buffer == config.ARM_PIN:
-                            sm.transition_to(state_machine.GameState.DEFUSE_PHASE)
-                            showing_input = False
-                            input_buffer = ""
-                            # Reset timers
-                            blink_timer = 0
-                            last_beep_time = -999
-                            last_30s_mark = -1
+                        # Check PIN
+                        correct_pin = config.ARM_PIN if sm.pin_mode == 1 else sm.dynamic_pin
+                        
+                        # In dynamic mode, user SETS the pin when planting?
+                        # Re-reading prompt: "If the game is in dynamic pin, on plant phase, 
+                        # user will press * and define a 4 digit pin, show this set on console please."
+                        
+                        if sm.pin_mode in [2, 3]:
+                            if len(input_buffer) == 4:
+                                sm.dynamic_pin = input_buffer
+                                print(f"[DYNAMIC PIN] SET TO: {sm.dynamic_pin}")
+                                
+                                # Mode 3: Send Telegram on Plant
+                                if sm.pin_mode == 3:
+                                    from bomb_app.telegram_service import telegram_service
+                                    msg_counterterrorists = f"THE BOMB HAS BEEN PLANTED!\n{sm.defuse_time} TO EXPLOSION"
+                                    telegram_service.send_message(tg_chat_id_counterterrorists, msg_counterterrorists)
+                                    msg_terrorists = "BOMB PLANTED!\nPROTECT AT ALL COSTS!"
+                                    telegram_service.send_message(tg_chat_id_terrorists, msg_terrorists)
+                                
+                                sm.transition_to(state_machine.GameState.DEFUSE_PHASE)
+                                showing_input = False
+                                input_buffer = ""
+                                blink_timer = 0
+                                last_beep_time = -999
+                                last_30s_mark = -1
+                            else:
+                                message_overlay = "4 DIGITS REQ"
+                                message_timer = 2.0
+                                input_buffer = ""
+                                showing_input = False
                         else:
-                            message_overlay = "WRONG CODE"
-                            message_timer = 2.0
-                            input_buffer = ""
-                            # showing_input = False # Keep showing input or close? usually close or retry. Let's close for now to force * again? or just clear logic. 
-                            # Request says "any other code must show WRONG CODE". Logic implies retry?
-                            # I'll reset input but keep window open? Or close it. 
-                            # If I close it, they have to press * again. 
-                            # Let's close it to be safe/simple state.
-                            showing_input = False 
+                            # Static mode
+                            if input_buffer == config.ARM_PIN:
+                                sm.transition_to(state_machine.GameState.DEFUSE_PHASE)
+                                showing_input = False
+                                input_buffer = ""
+                                blink_timer = 0
+                                last_beep_time = -999
+                                last_30s_mark = -1
+                            else:
+                                message_overlay = "WRONG CODE"
+                                message_timer = 2.0
+                                input_buffer = ""
+                                showing_input = False
 
                     elif key == '*': # Cancel input?
                         showing_input = False
@@ -352,21 +418,70 @@ def main():
                     if key == '*':
                         showing_input = True
                         input_buffer = ""
+                        if sm.pin_mode in [2, 3]:
+                            defuse_step = 0 # Ask for Phone
+                        else:
+                            defuse_step = 1 # Ask for PIN directly
                 else:
                     if key.isdigit():
-                        if len(input_buffer) < 4:
-                            input_buffer += key
+                        input_buffer += key
                     elif key == '#': # Confirm
-                        if input_buffer == config.DEFUSE_PIN:
-                            sm.transition_to(state_machine.GameState.DEFUSED)
-                            # Reset timers
-                            blink_timer = 0
-                            last_beep_time = -999
+                        if sm.pin_mode in [2, 3]:
+                            if defuse_step == 0:
+                                # stage: Ask for Phone
+                                if input_buffer in sm.player_phones:
+                                    sm.log("SYSTEM BREACH DETECTED")
+                                    sm.log("BYPASSING ENCRYPTION...")
+                                    sm.log("EXPLOITING BUFFER OVERFLOW...")
+                                    sm.log("EXTRACTING MASTER PIN...")
+                                    sm.log(f"PIN REVEALED: {sm.dynamic_pin}")
+                                    
+                                    # Show overlay like a "software glitch"
+                                    sm.show_console = True
+                                    
+                                    # Mode 3: Send Telegram on Reveal
+                                    if sm.pin_mode == 3:
+                                        from bomb_app.telegram_service import telegram_service
+                                        msg_counterterrorists = f"PIN FOR DEFUSE: {sm.dynamic_pin}"
+                                        telegram_service.send_message(tg_chat_id_counterterrorists, msg_counterterrorists)
+                                        msg_terrorists = "DEFUSE IN PROGRESS..."
+                                        telegram_service.send_message(tg_chat_id_terrorists, msg_terrorists)
+                                        
+                                    message_overlay = "PHONE OK"
+                                    message_timer = 1.0
+                                    input_buffer = ""
+                                    defuse_step = 1 # Now ask for PIN
+                                else:
+                                    message_overlay = "WRONG PHONE"
+                                    message_timer = 2.0
+                                    input_buffer = ""
+                                    showing_input = False
+                            else:
+                                # stage: Ask for PIN
+                                if input_buffer == sm.dynamic_pin:
+                                    sm.transition_to(state_machine.GameState.DEFUSED)
+                                    blink_timer = 0
+                                    last_beep_time = -999
+                                    showing_input = False
+                                    input_buffer = ""
+                                else:
+                                    message_overlay = "WRONG CODE"
+                                    message_timer = 2.0
+                                    input_buffer = ""
+                                    showing_input = False
                         else:
-                            message_overlay = "WRONG CODE"
-                            message_timer = 2.0
-                            input_buffer = ""
-                            showing_input = False
+                            # Static mode
+                            if input_buffer == config.DEFUSE_PIN:
+                                sm.transition_to(state_machine.GameState.DEFUSED)
+                                blink_timer = 0
+                                last_beep_time = -999
+                                showing_input = False
+                                input_buffer = ""
+                            else:
+                                message_overlay = "WRONG CODE"
+                                message_timer = 2.0
+                                input_buffer = ""
+                                showing_input = False
                             
                     elif key == '*': # Cancel
                         showing_input = False
@@ -384,7 +499,13 @@ def main():
         # --- RENDER ---
         display_input = ""
         
-        if sm.state == state_machine.GameState.CONFIG:
+        if sm.state == state_machine.GameState.PIN_TYPE_SELECT:
+             current_label = "SELECT PIN TYPE (1:STAT, 2:DYN, 3:TG)"
+             display_input = input_buffer
+        elif sm.state == state_machine.GameState.PLAYER_REGISTRATION:
+             current_label = f"PLAYER {player_step} PHONE"
+             display_input = input_buffer
+        elif sm.state == state_machine.GameState.CONFIG:
              # Determine Context Label
              if config_step == 0:
                  current_label = "SET PLANT TIME"
@@ -393,16 +514,40 @@ def main():
              elif config_step == 2:
                  current_label = "CONFIG DONE"
              display_input = input_buffer
-        elif showing_input:
-             # Masking Logic: "****", "1***", "12**", etc.
-             # If input is "12", len is 2. 
-             # We want to show input + '*' * (4 - len)
-             # But verify max len 4.
-             display_val = input_buffer
-             mask_count = 4 - len(display_val)
-             if mask_count < 0: mask_count = 0
-             display_input = display_val + ('*' * mask_count)
-             current_label = "CODE" # Default label for other states
+        elif sm.state == state_machine.GameState.DEFUSE_PHASE:
+             if not showing_input:
+                  if sm.pin_mode in [2, 3]:
+                       current_label = "PRESS * TO PUT PHONE"
+                  else:
+                       current_label = "PRESS * TO ENTER PIN"
+             else:
+                  if sm.pin_mode in [2, 3]:
+                       if defuse_step == 0:
+                            current_label = "PRESS # IN THE END"
+                            display_input = input_buffer
+                       else:
+                            # Masking for PIN
+                            display_val = input_buffer
+                            mask_count = 4 - len(display_val)
+                            if mask_count < 0: mask_count = 0
+                            display_input = display_val + ('*' * mask_count)
+                            current_label = "INSERT PIN"
+                  else:
+                       # Static mode Masking
+                       display_val = input_buffer
+                       mask_count = 4 - len(display_val)
+                       if mask_count < 0: mask_count = 0
+                       display_input = display_val + ('*' * mask_count)
+                       current_label = "CODE"
+        elif sm.state == state_machine.GameState.PLANT_PHASE:
+             if showing_input:
+                  display_val = input_buffer
+                  mask_count = 4 - len(display_val)
+                  if mask_count < 0: mask_count = 0
+                  display_input = display_val + ('*' * mask_count)
+                  current_label = "CODE"
+             else:
+                  current_label = ""
         else:
              current_label = "" # Unused
 

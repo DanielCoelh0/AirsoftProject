@@ -21,6 +21,28 @@ class Renderer:
     def clear(self):
         self.screen.fill(config.COLOR_BLACK)
         
+    def draw_console_overlay(self, logs):
+        """Draw 80% transparent black overlay with log messages"""
+        overlay = pygame.Surface((self.width, self.height))
+        overlay.set_alpha(204)  # ~80% transparency (255 * 0.8 = 204)
+        overlay.fill(config.COLOR_BLACK)
+        self.screen.blit(overlay, (0, 0))
+        
+        # Border
+        pygame.draw.rect(self.screen, config.COLOR_GREEN, (10, 10, self.width - 20, self.height - 20), 2)
+        
+        # Title
+        self.draw_text("SYSTEM CONSOLE", self.font_medium, config.COLOR_GREEN, (self.width // 2, 30))
+        
+        # Draw Logs
+        x_start = 20
+        y_start = 60
+        line_height = 20
+        
+        for i, log_msg in enumerate(logs):
+            surface = self.font_small.render(f"> {log_msg}", True, config.COLOR_GREEN)
+            self.screen.blit(surface, (x_start, y_start + i * line_height))
+
     def update(self):
         pygame.display.flip()
         
@@ -52,7 +74,25 @@ class Renderer:
                 self.clear()
             return  # Skip header drawing for boot screen
         
-        if state == GameState.CONFIG:
+        if state == GameState.PIN_TYPE_SELECT:
+            self.draw_text("PIN MODE", self.font_header, config.COLOR_WHITE, (self.width//2, 20))
+            self.draw_text("1: STATIC PIN", self.font_medium, config.COLOR_WHITE, (cx, 80))
+            self.draw_text("2: DYNAMIC PIN", self.font_medium, config.COLOR_WHITE, (cx, 120))
+            self.draw_text("3: TELEGRAM PIN", self.font_medium, config.COLOR_WHITE, (cx, 160))
+            self.draw_text(f"CHOICE: {current_input}", self.font_large, config.COLOR_GREEN, (cx, 220))
+            self.draw_text("PRESS # TO CONFIRM", self.font_small, config.COLOR_WHITE, (cx, 280))
+
+        elif state == GameState.PLAYER_REGISTRATION:
+            self.draw_text("REGISTRATION", self.font_header, config.COLOR_WHITE, (self.width//2, 20))
+            self.draw_text(input_label, self.font_medium, config.COLOR_WHITE, (cx, 100))
+            self.draw_text(current_input, self.font_large, config.COLOR_GREEN, (cx, 160))
+            self.draw_text("PRESS # TO REGISTER", self.font_small, config.COLOR_WHITE, (cx, 240))
+            self.draw_text("PRESS * TO FINISH", self.font_small, config.COLOR_WHITE, (cx, 270))
+            # Show small list of already registered?
+            count = len(state_machine.player_phones)
+            self.draw_text(f"REGISTERED: {count}", self.font_small, config.COLOR_YELLOW, (cx, 300))
+
+        elif state == GameState.CONFIG:
             # Header text
             self.draw_text("GAME SETUP", self.font_header, config.COLOR_WHITE, (self.width//2, 20))
             # Content Area
@@ -67,7 +107,7 @@ class Renderer:
             # Header text
             self.draw_text("GAME READY", self.font_header, config.COLOR_GREEN, (self.width//2, 20))
             # Content Area
-            self.draw_text("PRESS * TO", self.font_medium, config.COLOR_WHITE, (cx, cy - 30))
+            self.draw_text("PRESS * TO START", self.font_medium, config.COLOR_WHITE, (cx, cy - 30))
             self.draw_text("START", self.font_large, config.COLOR_WHITE, (cx, cy + 30))
             self.draw_text("HOLD # (2s) TO RESET", self.font_small, (100, 100, 100), (cx, 300))
             
@@ -102,7 +142,7 @@ class Renderer:
             time_str = state_machine.get_time_string()
             self.draw_text(time_str, self.font_countdown, config.COLOR_RED, (cx, cy - 60))
             self.draw_text("TO KABOOM", self.font_medium, config.COLOR_YELLOW, (cx, cy))
-            self.draw_text("PRESS * TO ENTER CODE", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
+            self.draw_text(f"{input_label}", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
             self.draw_text(current_input, self.font_large, config.COLOR_WHITE, (cx, cy + 120))
 
         elif state == GameState.EXPLODED:
@@ -135,3 +175,7 @@ class Renderer:
         if state in [GameState.EXPLODED, GameState.DEFUSED, GameState.TIME_OUT]:
             self.draw_text("PRESS # TO PLAY AGAIN", self.font_small, config.COLOR_WHITE, (cx, 270))
             self.draw_text("HOLD # (2s) TO RESET", self.font_small, (100, 100, 100), (cx, 300))
+        
+        # PIN TYPE 2/3 CONSOLE OVERLAY
+        if state_machine.show_console:
+            self.draw_console_overlay(state_machine.logs)
