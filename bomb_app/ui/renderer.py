@@ -15,6 +15,7 @@ class Renderer:
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
         self.font_medium = pygame.font.SysFont("Arial", 25)
         self.font_small = pygame.font.SysFont("Arial", 18)
+        self.font_countdown = pygame.font.SysFont("Arial", 50, bold=True)
 
         
     def clear(self):
@@ -28,7 +29,7 @@ class Renderer:
         rect = surface.get_rect(center=(center_pos[0], center_pos[1]))
         self.screen.blit(surface, rect)
         
-    def render(self, state_machine, current_input="", input_label="INPUT"):
+    def render(self, state_machine, current_input="", input_label="INPUT", screen_blink=False, text_blink=False, video_frame=None):
         self.clear()
         state = state_machine.state
         
@@ -40,6 +41,16 @@ class Renderer:
         cy = self.height // 2
         
         from ..state_machine import GameState
+        
+        if state == GameState.BOOT:
+            # Display video frame (fullscreen, no header)
+            if video_frame is not None:
+                # video_frame is already a pygame surface, just blit it
+                self.screen.blit(video_frame, (0, 0))
+            else:
+                # Fallback if no frame provided
+                self.clear()
+            return  # Skip header drawing for boot screen
         
         if state == GameState.CONFIG:
             # Header text
@@ -54,45 +65,73 @@ class Renderer:
             
         elif state == GameState.READY:
             # Header text
-            self.draw_text("READY", self.font_header, config.COLOR_GREEN, (self.width//2, 20))
+            self.draw_text("GAME READY", self.font_header, config.COLOR_GREEN, (self.width//2, 20))
             # Content Area
-            self.draw_text("PRESS * TO START", self.font_medium, config.COLOR_WHITE, (cx, cy + 30))
+            self.draw_text("PRESS * TO", self.font_medium, config.COLOR_WHITE, (cx, cy - 30))
+            self.draw_text("START", self.font_large, config.COLOR_WHITE, (cx, cy + 30))
             self.draw_text("HOLD # (2s) TO RESET", self.font_small, (100, 100, 100), (cx, 300))
             
         elif state == GameState.PLANT_PHASE:
-            self.draw_text("PLANTING", self.font_large, config.COLOR_RED, (cx, 80))
+            # Screen blink effect (yellow overlay)
+            if screen_blink:
+                overlay = pygame.Surface((self.width, self.height))
+                overlay.set_alpha(80)  # Semi-transparent
+                overlay.fill(config.COLOR_YELLOW)
+                self.screen.blit(overlay, (0, 0))
             
-            # Timer
-            time_str = state_machine.get_time_string()
-            self.draw_text(time_str, self.font_large, config.COLOR_WHITE, (cx, 140))
-            
-            self.draw_text("PRESS * TO ENTER CODE", self.font_small, config.COLOR_WHITE, (cx, 200))
-            self.draw_text(current_input, self.font_large, config.COLOR_YELLOW, (cx, 240))
+            # Header text
+            self.draw_text("PLANT BOMB", self.font_header, config.COLOR_YELLOW, (self.width//2, 20))
+            # Content Area
+            time_str = state_machine.get_time_string() # Timer
+            self.draw_text(time_str, self.font_countdown, config.COLOR_WHITE, (cx, cy - 60))
+            self.draw_text("TO DEADLINE", self.font_medium, config.COLOR_YELLOW, (cx, cy))
+            self.draw_text("PRESS * TO ENTER CODE", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
+            self.draw_text(current_input, self.font_large, config.COLOR_YELLOW, (cx, cy + 120))
             
         elif state == GameState.DEFUSE_PHASE:
-            self.draw_text("ARMED!", self.font_large, config.COLOR_RED, (cx, 60))
-            self.draw_text("DEFUSE NOW", self.font_small, config.COLOR_YELLOW, (cx, 90))
-            self.draw_text("PRESS * TO ENTER CODE", self.font_small, config.COLOR_WHITE, (cx, 200))
+            # Screen blink effect (red overlay)
+            if screen_blink:
+                overlay = pygame.Surface((self.width, self.height))
+                overlay.set_alpha(80)  # Semi-transparent
+                overlay.fill(config.COLOR_RED)
+                self.screen.blit(overlay, (0, 0))
             
-            # Blink effect for timer maybe?
+            # Header text
+            self.draw_text("ARMED!", self.font_header, config.COLOR_RED, (self.width//2, 20))
+            # Content Area
             time_str = state_machine.get_time_string()
-            self.draw_text(time_str, self.font_large, config.COLOR_RED, (cx, 150))
-            
-            self.draw_text(current_input, self.font_large, config.COLOR_WHITE, (cx, 240))
+            self.draw_text(time_str, self.font_countdown, config.COLOR_RED, (cx, cy - 60))
+            self.draw_text("TO KABOOM", self.font_medium, config.COLOR_YELLOW, (cx, cy))
+            self.draw_text("PRESS * TO ENTER CODE", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
+            self.draw_text(current_input, self.font_large, config.COLOR_WHITE, (cx, cy + 120))
 
         elif state == GameState.EXPLODED:
-            self.draw_text("BOOM!", self.font_large, config.COLOR_RED, (cx, cy))
+            # Header text
+            self.draw_text("BOOM!", self.font_header, config.COLOR_RED, (self.width//2, 20))
+            # Content Area
+            self.draw_text("TARGET", self.font_large, config.COLOR_RED, (cx, cy - 60))
+            if not text_blink:  # Only show when not blinking (creates blink effect)
+                self.draw_text("DESTROYED", self.font_large, config.COLOR_RED, (cx, cy))
             self.draw_text("MASKS OFF!", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
             
         elif state == GameState.DEFUSED:
-            self.draw_text("BOMB", self.font_large, config.COLOR_GREEN, (cx, cy - 20))
-            self.draw_text("DEFUSED", self.font_large, config.COLOR_GREEN, (cx, cy + 20))
+            # Header text
+            self.draw_text("DEFUSED!", self.font_header, config.COLOR_RED, (self.width//2, 20))
+            # Content Area
+            self.draw_text("MISSION", self.font_large, config.COLOR_GREEN, (cx, cy - 60))
+            if not text_blink:  # Only show when not blinking (creates blink effect)
+                self.draw_text("SUCCESS", self.font_large, config.COLOR_GREEN, (cx, cy))
             self.draw_text("COUNTER-TERRORISTS WIN", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
 
         elif state == GameState.TIME_OUT:
-            self.draw_text("TIME OUT", self.font_large, config.COLOR_YELLOW, (cx, cy - 20))
-            self.draw_text("PLANT FAILED", self.font_small, config.COLOR_WHITE, (cx, cy + 20))
+            # Header text
+            self.draw_text("TIME OUT!", self.font_header, config.COLOR_RED, (self.width//2, 20))
+            # Content Area  
+            self.draw_text("TERRORISTS", self.font_medium, config.COLOR_YELLOW, (cx, cy - 60))
+            if not text_blink:  # Only show when not blinking (creates blink effect)
+                self.draw_text("FAILED", self.font_large, config.COLOR_YELLOW, (cx, cy))
+            self.draw_text("TRY RUSH B", self.font_small, config.COLOR_WHITE, (cx, cy + 60))
             
         if state in [GameState.EXPLODED, GameState.DEFUSED, GameState.TIME_OUT]:
-            self.draw_text("PRESS # TO PLAY AGAIN", self.font_small, (150, 150, 150), (cx, 270))
+            self.draw_text("PRESS # TO PLAY AGAIN", self.font_small, config.COLOR_WHITE, (cx, 270))
             self.draw_text("HOLD # (2s) TO RESET", self.font_small, (100, 100, 100), (cx, 300))

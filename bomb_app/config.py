@@ -3,6 +3,9 @@
 DEFAULT_PLANT_TIME = 60  # Seconds
 DEFAULT_DEFUSE_TIME = 60 # Seconds
 
+# Boot Video
+BOOT_VIDEO_PATH = "bomb_app/assets/boot_video.mp4"
+
 # PINS
 ARM_PIN = "1234"
 DEFUSE_PIN = "1234"

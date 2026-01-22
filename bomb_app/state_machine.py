@@ -1,6 +1,7 @@
 from enum import Enum, auto
 
 class GameState(Enum):
+    BOOT = auto()
     CONFIG = auto()
     READY = auto()
     PLANT_PHASE = auto()
@@ -11,7 +12,7 @@ class GameState(Enum):
 
 class StateMachine:
     def __init__(self):
-        self.state = GameState.CONFIG
+        self.state = GameState.BOOT
         self.plant_time = 0
         self.defuse_time = 0
         self.current_timer = 0
@@ -41,4 +42,5 @@ class StateMachine:
     def get_time_string(self):
         m = int(self.current_timer // 60)
         s = int(self.current_timer % 60)
-        return f"{m:02d}:{s:02d}"
+        ms = int((self.current_timer % 1) * 1000)
+        return f"{m:02d}:{s:02d}.{ms:03d}"
