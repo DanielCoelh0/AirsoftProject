@@ -1,0 +1,9 @@
+# Core
+pygame-ce
+opencv-python
+Pillow
+requests
+
+# Hardware (Raspberry Pi Only)
+RPi.GPIO
+spidev
